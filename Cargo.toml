@@ -8,6 +8,7 @@ name = "minisat-rust"
 repository = "https://github.com/mishun/minisat-rust.git"
 version = "0.0.1"
 edition = "2018"
+build = "build.rs"
 
 [dependencies]
 clap = "2"

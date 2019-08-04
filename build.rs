@@ -1,72 +1,18 @@
+use std::env;
+use std::fs::File;
+use std::path::Path;
+use std::io::Write;
 
-use tempfile;
-use time;
+const EASY: &str = include_str!("./tests/easy.txt");
+const HARD: &str = include_str!("./tests/hard.txt");
 
-use std::{fs, io, path, process};
-use std::io::{Read, Seek};
-use minisat_rust::sat::{dimacs, minisat, SolveRes, Solver, Stats};
-use minisat_rust::sat::minisat::budget::Budget;
+fn main() {
+    let out_dir = env::var("OUT_DIR").unwrap();
+    let destination = Path::new(&out_dir).join("test.rs");
+    let mut f = File::create(&destination).unwrap();
 
-
-// TODO: come up with something better?
-#[test]
-fn compare_with_minisat_easy_0of4() {
-    walk("./tests/cnf", 4, 0).expect("IO Error");
-}
-
-#[test]
-fn compare_with_minisat_easy_1of4() {
-    walk("./tests/cnf", 4, 1).expect("IO Error");
-}
-
-#[test]
-fn compare_with_minisat_easy_2of4() {
-    walk("./tests/cnf", 4, 2).expect("IO Error");
-}
-
-#[test]
-fn compare_with_minisat_easy_3of4() {
-    walk("./tests/cnf", 4, 3).expect("IO Error");
-}
-
-
-#[test]
-#[ignore]
-fn compare_with_minisat_hard() {
-    walk("./tests/cnf-hard", 1, 0).expect("IO Error");
-}
-
-
-fn walk(dir_path: &str, bins: usize, bin: usize) -> io::Result<()> {
-    let paths = {
-        let mut paths = Vec::new();
-        for _entry in fs::read_dir(dir_path)? {
-            let entry = _entry?;
-            if entry.file_type()?.is_file() {
-                let path = entry.path();
-                paths.push(path);
-            }
-        }
-        paths.sort();
-        paths
-    };
-
-    let mut sat = 0u64;
-    let mut unsat = 0u64;
-    for (_, path) in paths.iter().enumerate().filter(|(i, _)| i % bins == bin) {
-        let outcome = test_file(path.as_path())?;
-        if outcome {
-            sat += 1;
-        } else {
-            unsat += 1;
-        }
-    }
-
-    println!("Done ({} sat, {} unsat)", sat, unsat);
-    Ok(())
-}
-
-
+    write!(f,
+"
 fn test_file(path: &path::Path) -> io::Result<bool> {
     let (minisat_result, stdout, minisat_time) = {
         let out_file = tempfile::NamedTempFile::new()?;
@@ -217,3 +163,24 @@ fn parse_stats(line: &String, header: &[&str]) -> u64 {
     assert_eq!(it.next(), Some(":"));
     it.next().and_then(|s| s.parse().ok()).unwrap()
 }
+);
+"
+    for filename in EASY.lines().map(|f| Path::new(f)) {
+        write!(
+            f,
+            "
+#[test]
+fn {name}() {{
+    assert!(true);
+}}",
+            //
+            name = format!("compare_for_{}", filename.file_name()
+                                                     .unwrap().
+                                                     to_str().
+                                                     unwrap().
+                                                     trim_end_matches(".cnf.gz").
+                                                     replace("-", "_"))
+        ).unwrap();
+    }
+}
+
